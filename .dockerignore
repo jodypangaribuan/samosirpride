@@ -1,0 +1,10 @@
+.git
+.gitignore
+.vscode
+docker-compose.yml
+Dockerfile
+.dockerignore
+README.md
+database/backups
+*.log
+Composer-Setup.exe 

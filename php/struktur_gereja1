@@ -1,0 +1,329 @@
+<?php
+include "koneksi.php";
+
+// Proses hapus data
+if (isset($_GET['action']) && $_GET['action'] == 'delete' && isset($_GET['id'])) {
+    $id = (int)$_GET['id'];
+
+    if ($id > 0) {
+        $query = "SELECT gambar FROM struktur_gereja WHERE id = $id";
+        $img_result = mysqli_query($conn, $query);
+
+        if ($img_data = mysqli_fetch_assoc($img_result)) {
+            $stmt = $conn->prepare("DELETE FROM struktur_gereja WHERE id = ?");
+            $stmt->bind_param("i", $id);
+
+            if ($stmt->execute()) {
+                $image_path = $_SERVER['DOCUMENT_ROOT'] . "uploads/struktur_gereja/" . $img_data['gambar'];
+                if (!empty($img_data['gambar']) && file_exists($image_path)) {
+                    unlink($image_path);
+                }
+                header("Location: struktur_gereja.php?status=success&message=" . urlencode("Struktur Gereja berhasil dihapus"));
+                exit;
+            } else {
+                die("Gagal menghapus data: " . $stmt->error);
+            }
+        } else {
+            header("Location: struktur_gereja.php?status=error&message=" . urlencode("Data tidak ditemukan"));
+            exit;
+        }
+    } else {
+        header("Location: struktur_gereja.php?status=error&message=" . urlencode("ID tidak valid"));
+        exit;
+    }
+}
+
+// Ambil data berdasarkan kategori
+$kategori_list = ['Pendeta', 'Parhalado/Sintua', 'Dewan Gereja', 'Guru Rena & Sekolah Minggu'];
+$data_kategori = [];
+
+foreach ($kategori_list as $kategori) {
+    $stmt = $conn->prepare("SELECT * FROM struktur_gereja WHERE kategori = ? ORDER BY id DESC");
+    $stmt->bind_param("s", $kategori);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $data_kategori[$kategori] = $result->fetch_all(MYSQLI_ASSOC);
+}
+
+$current_page = basename($_SERVER['PHP_SELF']);
+?>
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel Gereja - Galeri</title>
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link rel="stylesheet" href="style.css">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&family=Merriweather:wght@400;700&display=swap"
+        rel="stylesheet">
+        <style>
+           .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 30px;
+            margin-top: 20px;
+        }
+
+        .gallery-card {
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .gallery-image {
+            width: 100%;
+            height: 250px;
+            object-fit: cover;
+            object-position: center;
+        }
+
+        .image-placeholder {
+            width: 100%;
+            height: 250px;
+            background: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        .gallery-caption {
+            padding: 10px 15px;
+        }
+
+        .gallery-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin: 8px 0 5px;
+        }
+
+        .gallery-description {
+            font-size: 14px;
+            color: #555;
+            margin-bottom: 10px;
+        }
+
+        .gallery-actions {
+            margin-bottom: 15px;
+        }
+
+        .btn-edit, .btn-delete {
+            background: #007bff;
+            border: none;
+            padding: 8px 12px;
+            color: white;
+            font-size: 14px;
+            margin: 3px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .btn-delete {
+            background: #dc3545;
+        }
+
+        .btn-edit:hover, .btn-delete:hover {
+            opacity: 0.8;
+        }
+
+        @media (max-width: 768px) {
+            .gallery-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .gallery-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* Tambahan style untuk admin */
+        .btn-tambah {
+            background: #28a745;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 5px;
+            text-decoration: none;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+        
+        .btn-tambah:hover {
+            background: #218838;
+        }
+
+        </style>
+</head>
+
+<body>
+    <div class="wrapper">
+        <!-- Sidebar -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <i class="fas fa-church fa-2x"></i>
+                <h3>Admin Gereja</h3>
+            </div>
+            <ul class="sidebar-menu">
+                <li>
+                    <a href="dashboard.php" class="<?= ($current_page == 'dashboard.php') ? 'active' : '' ?>">
+                        <i class="fas fa-tachometer-alt"></i> Dashboard
+                    </a>
+                </li>
+                <li>
+                    <a href="ayat_harian_admin.php" class="<?= ($current_page == 'ayat_harian_admin.php') ? 'active' : '' ?>">
+                        <i class="fas fa-book-bible"></i> Ayat Harian
+                    </a>
+                </li>
+                <li>
+                    <a href="jadwal_ibadah.php" class="<?= ($current_page == 'jadwal_ibadah.php') ? 'active' : '' ?>">
+                        <i class="fas fa-calendar-alt"></i> Jadwal Ibadah
+                    </a>
+                </li>
+                <li>
+                    <a href="program_pelayanan.php" class="<?= ($current_page == 'program_pelayanan.php') ? 'active' : '' ?>">
+                    <i class="fas fa-solid fa-folder "></i> Program Pelayanan
+                    </a>
+                </li>
+                <li>
+                    <a href="galeri.php" class="<?= ($current_page == 'galeri.php') ? 'active' : '' ?>">
+                    <i class="fas  fa-light fa-file "></i>Galeri
+                    </a>
+                </li>
+                <li>
+                    <a href="jemaat.php" class="<?= ($current_page == 'jemaat.php') ? 'active' : '' ?>">
+                    <i class="fas fa-users"></i>Jemaat
+                    </a>
+                </li>
+                <li>
+                    <a href="warta_jemaat.php" class="<?= ($current_page == 'warta_jemaat.php') ? 'active' : '' ?>">
+                    <i class="fas fa-solid fa-address-book"></i>Warta Jemaat
+                    </a>
+                </li>
+                <li>
+                    <a href="struktur_gereja.php" class="<?= ($current_page == 'struktur_gereja.php') ? 'active' : '' ?>">
+                    <i class="fas fa-solid fa-landmark"></i>Struktur Gereja
+                    </a>
+                </li>
+                <li>
+                    <a href="koor.php" class="<?= ($current_page == 'koor.php') ? 'active' : '' ?>">
+                    <i class="fas fa-solid fa-folder"></i>Koor
+                    </a>
+                </li>
+                <li>
+                    <a href="acara_koor.php" class="<?= ($current_page == 'acara_koor.php') ? 'active' : '' ?>">
+                    <i class="fas fa-solid fa-folder"></i>Acara Koor
+                    </a>
+                </li>
+                <li>
+                    <a href="event_galeri.php" class="<?= ($current_page == 'event_galeri.php') ? 'active' : '' ?>">
+                    <i class="fas fa-solid fa-folder"></i>Event Galeri
+                    </a>
+                </li>
+                <li>
+                    <a href="remaja_naposo.php" class="<?= ($current_page == 'remaja_naposo.php') ? 'active' : '' ?>">
+                    <i class="fas fa-solid fa-folder"></i>Remaja Naposo
+                    </a>
+                </li>
+                <li>
+                    <a href="peta.php" class="<?= ($current_page == 'peta.php') ? 'active' : '' ?>">
+                    <i class="fas fa-solid fa-location-dot"></i>peta/maps
+                    </a>
+                </li>
+                <li>
+                    <a href="pengaturan.php" class="<?= ($current_page == 'pengaturan.php') ? 'active' : '' ?>">
+                        <i class="fas fa-cog"></i> Pengaturan
+                    </a>
+                </li>
+                <li>
+                    <a href="logout.php">
+                        <i class="fas fa-sign-out-alt"></i> Keluar
+                    </a>
+                </li>
+            </ul>
+            
+        </nav>
+        <!-- Content Area -->
+        <div class="content">
+            <div class="content-header">
+                <h1>Kelola Struktur Gereja</h1>
+                <div class="user-info">
+                    <span>Selamat datang, Admin</span>
+                </div>
+            </div>
+
+            <?php if (isset($_GET['status'])): ?>
+                <div class="alert alert-<?= $_GET['status'] == 'success' ? 'success' : 'danger' ?>">
+                    <?= htmlspecialchars(urldecode($_GET['message'])) ?>
+                </div>
+            <?php endif; ?>
+
+            <a href="tambah_struktur_gereja.php" class="btn-tambah">
+                <i class="fas fa-plus"></i> Tambah Struktur Gereja
+            </a>
+
+            <?php foreach ($kategori_list as $kategori): ?>
+            <div class="main-content">
+                <h2 class="section-title"><?= htmlspecialchars($kategori); ?></h2>
+
+                <div class="gallery-grid">
+                    <?php if (!empty($data_kategori[$kategori])): ?>
+                        <?php foreach ($data_kategori[$kategori] as $row): ?>
+                            <div class="gallery-card">
+                                <?php
+                                $imagePath = "uploads/struktur_gereja/" . htmlspecialchars($row['gambar']);
+                                $fullPath = $_SERVER['DOCUMENT_ROOT'] . '/' . $imagePath;
+                                
+                                if (!empty($row['gambar']) && file_exists($fullPath)) {
+                                    echo '<img src="' . $imagePath . '" alt="' . htmlspecialchars($row['nama']) . '" class="gallery-image">';
+                                } else {
+                                    echo '<div class="image-placeholder">
+                                            <i class="fas fa-image fa-3x"></i>
+                                            <p>Gambar tidak ditemukan</p>
+                                          </div>';
+                                }
+                                ?>
+                                <div class="gallery-caption">
+                                    <h3 class="gallery-title"><?= htmlspecialchars($row['nama']); ?></h3>
+                                    <p class="gallery-description"><?= htmlspecialchars($row['deskripsi']); ?></p>
+                                </div>
+                                <div class="gallery-actions">
+                                    <button class="btn-edit" onclick="window.location.href='edit_struktur_gereja.php?id=<?= $row['id'] ?>'">
+                                        <i class="fas fa-edit"></i> Edit
+                                    </button>
+                                    <button class="btn-delete" onclick="confirmDelete(<?= $row['id'] ?>)">
+                                        <i class="fas fa-trash"></i> Hapus
+                                    </button>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <p style="grid-column: 1 / -1;">Tidak ada data untuk kategori <?= htmlspecialchars($kategori) ?>.</p>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+
+    <script>
+    function confirmDelete(id) {
+        if (confirm('Apakah Anda yakin ingin menghapus data ini?')) {
+            window.location.href = 'struktur_gereja.php?action=delete&id=' + id;
+        }
+    }
+    </script>
+</body>
+</html>

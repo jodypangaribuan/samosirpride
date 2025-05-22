@@ -1,0 +1,432 @@
+<?php
+include "koneksi.php";
+session_start();
+
+// Redirect jika belum login
+if (!isset($_SESSION['user_id'])) {
+    header("Location: login.php");
+    exit;
+}
+
+// Inisialisasi variabel
+$status = "";
+$message = "";
+$formData = [
+    'nama' => '',
+    'kategori' => '',
+    'deskripsi' => ''
+];
+
+// Daftar kategori yang valid
+$validKategori = ['Pendeta', 'Parhalado/Sintua', 'Dewan Gereja', 'Guru Rena & Sekolah Minggu'];
+
+// Proses form submission
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    // Sanitasi input
+    $formData['nama'] = mysqli_real_escape_string($conn, trim($_POST['nama']));
+    $formData['kategori'] = mysqli_real_escape_string($conn, $_POST['kategori']);
+    $formData['deskripsi'] = mysqli_real_escape_string($conn, trim($_POST['deskripsi']));
+    $user_id = $_SESSION['user_id'];
+
+    // Validasi input
+    $errors = [];
+    
+    if (empty($formData['nama'])) {
+        $errors[] = "Nama harus diisi";
+    } elseif (strlen($formData['nama']) > 255) {
+        $errors[] = "Nama terlalu panjang (maks. 255 karakter)";
+    }
+    
+    if (empty($formData['kategori']) || !in_array($formData['kategori'], $validKategori)) {
+        $errors[] = "Kategori tidak valid";
+    }
+    
+    if (empty($formData['deskripsi'])) {
+        $errors[] = "Deskripsi harus diisi";
+    }
+    
+    // Validasi file upload
+    $uploadError = "";
+    $new_filename = "";
+    
+    if (!isset($_FILES["gambar"]) || $_FILES["gambar"]["error"] == UPLOAD_ERR_NO_FILE) {
+        $errors[] = "Gambar harus diupload";
+    } else {
+        // Konfigurasi upload
+        $uploadDir = $_SERVER['DOCUMENT_ROOT'] . "/uploads/struktur_gereja/";
+        $maxFileSize = 2 * 1024 * 1024; // 2MB
+        $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+        $allowedExt = ['jpg', 'jpeg', 'png', 'gif'];
+        
+        // Buat direktori jika belum ada
+        if (!file_exists($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
+        }
+        
+        // Validasi file
+        $fileInfo = $_FILES["gambar"];
+        $fileType = mime_content_type($fileInfo["tmp_name"]);
+        $fileActualExt = strtolower(pathinfo($fileInfo["name"], PATHINFO_EXTENSION));
+        
+        if (!in_array($fileType, $allowedTypes)) {
+            $errors[] = "Hanya format JPG, JPEG, PNG & GIF yang diperbolehkan";
+        } elseif (!in_array($fileActualExt, $allowedExt)) {
+            $errors[] = "Ekstensi file tidak diizinkan";
+        } elseif ($fileInfo["size"] > $maxFileSize) {
+            $errors[] = "Ukuran gambar terlalu besar (maks. 2MB)";
+        } else {
+            // Generate nama file unik
+            $cleanedName = preg_replace('/[^a-zA-Z0-9._-]/', '', $fileInfo["name"]);
+            $new_filename = 'struktur_' . uniqid() . '_' . $cleanedName;
+            $targetPath = $uploadDir . $new_filename;
+        }
+    }
+    
+    // Jika tidak ada error, proses data
+    if (empty($errors)) {
+        // Upload file
+        error_log("Mencoba mengupload file ke: " . $targetPath);
+        
+        if (move_uploaded_file($fileInfo["tmp_name"], $targetPath)) {
+            // Set permission file
+            chmod($targetPath, 0644);
+            
+            // Insert ke database
+            $query = "INSERT INTO struktur_gereja (user_id, nama, kategori, deskripsi, gambar) VALUES (?, ?, ?, ?, ?)";
+            $stmt = $conn->prepare($query);
+            $stmt->bind_param("issss", $user_id, $formData['nama'], $formData['kategori'], $formData['deskripsi'], $new_filename);
+            
+            if ($stmt->execute()) {
+                header("Location: struktur_gereja.php?status=success&message=" . urlencode("Data struktur gereja berhasil ditambahkan"));
+                exit;
+            } else {
+                // Hapus file yang sudah diupload jika gagal insert
+                unlink($targetPath);
+                $status = "error";
+                $message = "Gagal menyimpan data: " . $stmt->error;
+            }
+            $stmt->close();
+        } else {
+            $status = "error";
+            $message = "Terjadi kesalahan saat mengupload gambar. Pastikan folder upload ada dan memiliki permission yang tepat.";
+        }
+    } else {
+        $status = "error";
+        $message = implode("<br>", $errors);
+    }
+}
+?>
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tambah Galeri - Admin Gereja</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #4e73df;
+            --secondary-color: #f8f9fc;
+            --text-color: #5a5c69;
+            --success-color: #1cc88a;
+            --error-color: #e74a3b;
+            --border-color: #e3e6f0;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: var(--secondary-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+            padding: 30px;
+        }
+        
+        .header {
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        h2 {
+            color: var(--primary-color);
+            font-weight: 600;
+            margin: 0;
+        }
+        
+        .back-link {
+            text-decoration: none;
+            color: var(--primary-color);
+            display: inline-flex;
+            align-items: center;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+        
+        .back-link:hover {
+            opacity: 0.8;
+        }
+        
+        .form-container {
+            margin-top: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #333;
+        }
+        
+        .required:after {
+            content: " *";
+            color: var(--error-color);
+        }
+        
+        input[type="text"],
+        textarea,
+        input[type="file"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 16px;
+            transition: border 0.3s;
+        }
+        
+        textarea {
+            min-height: 150px;
+            resize: vertical;
+        }
+        
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
+        }
+        
+        .button-group {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 30px;
+            gap: 15px;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 500;
+            border: none;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #2e59d9;
+        }
+        
+        .btn-danger {
+    background-color: var(--error-color);
+    color: white;
+}
+
+.btn-danger:hover {
+    background-color: #c82333;
+}
+
+        
+        .alert {
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .alert-danger {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .alert-icon {
+            font-size: 18px;
+        }
+        
+        .help-text {
+            font-size: 14px;
+            color: #6c757d;
+            margin-top: 5px;
+            font-style: italic;
+        }
+        
+        .preview-container {
+            margin-top: 15px;
+            display: none;
+        }
+        
+        .image-preview {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+        }
+    </style>
+</head>
+<body>
+<div class="container py-5">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0"><i class="fas fa-user-plus me-2"></i>Tambah Struktur Gereja</h4>
+                        <a href="struktur_gereja.php" class="btn btn-sm btn-light">
+                            <i class="fas fa-arrow-left me-1"></i> Kembali
+                        </a>
+                    </div>
+                    
+                    <div class="card-body">
+                        <?php if ($status == "error"): ?>
+                            <div class="alert alert-danger alert-dismissible fade show">
+                                <i class="fas fa-exclamation-circle me-2"></i>
+                                <?php echo $message; ?>
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        <?php endif; ?>
+                        
+                        <form method="post" enctype="multipart/form-data" class="needs-validation" novalidate>
+                            <div class="mb-3">
+                                <label for="nama" class="form-label required">Nama</label>
+                                <input type="text" class="form-control" id="nama" name="nama" 
+                                       value="<?php echo htmlspecialchars($formData['nama']); ?>" required>
+                                <div class="invalid-feedback">
+                                    Harap isi nama
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="kategori" class="form-label required">Kategori</label>
+                                <select class="form-select" id="kategori" name="kategori" required>
+                                    <option value="">-- Pilih Kategori --</option>
+                                    <?php foreach ($validKategori as $kategori): ?>
+                                        <option value="<?= htmlspecialchars($kategori) ?>" <?= $formData['kategori'] == $kategori ? 'selected' : '' ?>>
+                                            <?= htmlspecialchars($kategori) ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <div class="invalid-feedback">
+                                    Harap pilih kategori
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="deskripsi" class="form-label required">Deskripsi</label>
+                                <textarea class="form-control" id="deskripsi" name="deskripsi" rows="5" required><?php echo htmlspecialchars($formData['deskripsi']); ?></textarea>
+                                <div class="invalid-feedback">
+                                    Harap isi deskripsi
+                                </div>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label for="gambar" class="form-label required">Gambar</label>
+                                <input type="file" class="form-control" id="gambar" name="gambar" accept="image/*" required>
+                                <div class="help-text">Format: JPG, JPEG, PNG, GIF. Ukuran maksimal 2MB.</div>
+                                <img id="imagePreview" class="image-preview" src="#" alt="Pratinjau Gambar">
+                            </div>
+                            
+                            <div class="d-flex justify-content-end gap-2">
+                                <button type="reset" class="btn btn-secondary">
+                                    <i class="fas fa-undo me-1"></i> Reset
+                                </button>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-1"></i> Simpan
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Form validation
+        (function () {
+            'use strict'
+            
+            // Fetch all the forms we want to apply validation
+            var forms = document.querySelectorAll('.needs-validation')
+            
+            // Loop over them and prevent submission
+            Array.prototype.slice.call(forms)
+                .forEach(function (form) {
+                    form.addEventListener('submit', function (event) {
+                        if (!form.checkValidity()) {
+                            event.preventDefault()
+                            event.stopPropagation()
+                        }
+                        
+                        form.classList.add('was-validated')
+                    }, false)
+                })
+        })()
+        
+        // Image preview
+        document.getElementById('gambar').addEventListener('change', function(e) {
+            const preview = document.getElementById('imagePreview');
+            const file = e.target.files[0];
+            
+            if (file) {
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                }
+                
+                reader.readAsDataURL(file);
+            } else {
+                preview.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>

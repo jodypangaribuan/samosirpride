@@ -1,0 +1,44 @@
+ <hr>
+
+                    <!-- Galeri -->
+                    <h2>Dokumentasi Setiap Acara Koor</h2>
+                    <a href="tambah_koor.php">
+                        <button class="btn btn-primary btn-tambah">
+                            <i class="fas fa-plus"></i> Tambah Dokumentasi
+                        </button>
+                    </a>
+                    <div class="rounded-image"  width="10px" height="10px">
+                    <!-- Bagian galeri yang sudah dimodifikasi -->
+                <div class="gallery-grid" width="10px" height="10px">
+                    <?php
+                        mysqli_data_seek($result, 0);
+                    while ($row = mysqli_fetch_assoc($result)) {
+                        echo '<div class="gallery-item">';
+                        echo '<div class="image-container">';
+                        echo '<img src="uploads/Kegiatan/' . htmlspecialchars($row['gambar']) . '" alt="' . htmlspecialchars($row['nama']) . '">';
+                        echo '</div>';
+                        echo '<div class="action-buttons">';
+                        echo '<button class="btn btn-sm btn-view" onclick="window.location.href=\'edit_koor.php?id=' . $row['id'] . '\'"><i class="fas fa-edit"></i></button>';
+                        echo '<button class="btn btn-sm btn-delete" onclick="confirmDelete(' . $row['id'] . ')"><i class="fas fa-trash"></i></button>';
+                        echo '</div>';
+                        echo '</div>';
+                    }
+                    ?>
+                </div>
+                            </div>
+                            </div>
+                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+<script>
+    function confirmDelete(id) {
+        if (confirm('Apakah Anda yakin ingin menghapus data koor ini?')) {
+            window.location.href = 'koor.php?action=delete&id=' + id;
+        }
+    }
+</script>
+</html>
