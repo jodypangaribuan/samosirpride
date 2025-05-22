@@ -1,6 +1,11 @@
 <?php
 session_start();
 
+// Enable error reporting for debugging
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
 // Pengecekan login yang lebih ketat
 if (!isset($_SESSION['user_id']) || !isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
     header("Location: login.php");
@@ -20,45 +25,71 @@ $_SESSION['last_activity'] = time();
 // Koneksi database untuk mengambil data user
 include "koneksi.php";
 $user_id = $_SESSION['user_id'];
-$query = "SELECT username FROM users WHERE id = $user_id";
-$result = mysqli_query($conn, $query);
-$user = mysqli_fetch_assoc($result);
+$username = $_SESSION['username']; // Use the username from session
 
-// Menghitung total jemaat
-$total_jemaat_query = "SELECT COUNT(*) AS total FROM jemaat";
-$total_jemaat_result = mysqli_query($conn, $total_jemaat_query);
-$total_jemaat_data = mysqli_fetch_assoc($total_jemaat_result);
-$total_jemaat = $total_jemaat_data['total'];
-
-// Menghitung total ayat harian
-$total_ayat_query = "SELECT COUNT(*) AS total FROM ayat_harian";
-$total_ayat_result = mysqli_query($conn, $total_ayat_query);
-$total_ayat_data = mysqli_fetch_assoc($total_ayat_result);
-$total_ayat = $total_ayat_data['total'];
-
-// Menghitung total program pelayanan
-$total_pelayanan_query = "SELECT COUNT(*) AS total FROM program_pelayanan";
-$total_pelayanan_result = mysqli_query($conn, $total_pelayanan_query);
-$total_pelayanan_data = mysqli_fetch_assoc($total_pelayanan_result);
-$total_pelayanan = $total_pelayanan_data['total'];
-
-// Ambil pengumuman terbaru dari program_pelayanan
-$pengumuman_query = "SELECT * FROM program_pelayanan ORDER BY no DESC LIMIT 1";
-$pengumuman_result = mysqli_query($conn, $pengumuman_query);
-$pengumuman = mysqli_fetch_assoc($pengumuman_result);
-
-// Ambil ayat harian terbaru
-$ayat_query = "SELECT * FROM ayat_harian ORDER BY tanggal_dibuat DESC LIMIT 1";
-$ayat_result = mysqli_query($conn, $ayat_query);
-$ayat = mysqli_fetch_assoc($ayat_result);
-
-// Ambil jadwal ibadah mendatang (yang tanggalnya >= hari ini)
-$jadwal_query = "SELECT * FROM jadwal_ibadah ORDER BY id DESC LIMIT 1";
-$jadwal_result = mysqli_query($conn, $jadwal_query);
+// Initialize counters with default values in case queries fail
+$total_jemaat = 0;
+$total_ayat = 0;
+$total_pelayanan = 0;
+$pengumuman = null;
+$ayat = null;
 $jadwal_ibadah = [];
-while ($row = mysqli_fetch_assoc($jadwal_result)) {
-    $jadwal_ibadah[] = $row;
+
+// Use try-catch blocks to handle potential database errors
+try {
+    // Menghitung total jemaat
+    $total_jemaat_query = "SELECT COUNT(*) AS total FROM jemaat";
+    $total_jemaat_result = mysqli_query($conn, $total_jemaat_query);
+    if ($total_jemaat_result) {
+        $total_jemaat_data = mysqli_fetch_assoc($total_jemaat_result);
+        $total_jemaat = $total_jemaat_data['total'];
+    }
+
+    // Menghitung total ayat harian
+    $total_ayat_query = "SELECT COUNT(*) AS total FROM ayat_harian";
+    $total_ayat_result = mysqli_query($conn, $total_ayat_query);
+    if ($total_ayat_result) {
+        $total_ayat_data = mysqli_fetch_assoc($total_ayat_result);
+        $total_ayat = $total_ayat_data['total'];
+    }
+
+    // Menghitung total program pelayanan
+    $total_pelayanan_query = "SELECT COUNT(*) AS total FROM program_pelayanan";
+    $total_pelayanan_result = mysqli_query($conn, $total_pelayanan_query);
+    if ($total_pelayanan_result) {
+        $total_pelayanan_data = mysqli_fetch_assoc($total_pelayanan_result);
+        $total_pelayanan = $total_pelayanan_data['total'];
+    }
+
+    // Ambil pengumuman terbaru dari program_pelayanan
+    $pengumuman_query = "SELECT * FROM program_pelayanan ORDER BY no DESC LIMIT 1";
+    $pengumuman_result = mysqli_query($conn, $pengumuman_query);
+    if ($pengumuman_result) {
+        $pengumuman = mysqli_fetch_assoc($pengumuman_result);
+    }
+
+    // Ambil ayat harian terbaru
+    $ayat_query = "SELECT * FROM ayat_harian ORDER BY tanggal_dibuat DESC LIMIT 1";
+    $ayat_result = mysqli_query($conn, $ayat_query);
+    if ($ayat_result) {
+        $ayat = mysqli_fetch_assoc($ayat_result);
+    }
+
+    // Ambil jadwal ibadah mendatang
+    $jadwal_query = "SELECT * FROM jadwal_ibadah ORDER BY id DESC LIMIT 1";
+    $jadwal_result = mysqli_query($conn, $jadwal_query);
+    if ($jadwal_result) {
+        while ($row = mysqli_fetch_assoc($jadwal_result)) {
+            $jadwal_ibadah[] = $row;
+        }
+    }
+} catch (Exception $e) {
+    error_log("Database error: " . $e->getMessage());
+    // We'll continue with default values
 }
+
+// Set current page for sidebar
+$current_page = basename($_SERVER['PHP_SELF']);
 ?>
 
 
@@ -71,7 +102,6 @@ while ($row = mysqli_fetch_assoc($jadwal_result)) {
     <title>Admin Gereja - Dashboard</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Google Fonts -->
-    <link rel="stylesheet" href="style.css">
     <link
         href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&family=Merriweather:wght@400;700&display=swap"
         rel="stylesheet">
@@ -270,17 +300,105 @@ while ($row = mysqli_fetch_assoc($jadwal_result)) {
                 margin-left: 70px;
             }
         }
+
+        /* Sidebar styling */
+        .sidebar-menu {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .sidebar-menu li {
+            margin-bottom: 5px;
+        }
+
+        .sidebar-menu a {
+            display: block;
+            padding: 10px 20px;
+            color: white;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+
+        .sidebar-menu a:hover,
+        .sidebar-menu a.active {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .sidebar-menu a i {
+            margin-right: 10px;
+            width: 20px;
+            text-align: center;
+        }
+
+        .dropdown-menu {
+            display: none;
+            list-style: none;
+            padding-left: 20px;
+            margin: 5px 0;
+        }
+
+        .dropdown.active .dropdown-menu {
+            display: block;
+        }
+
+        .toggle-icon {
+            float: right;
+            transition: transform 0.3s ease;
+        }
+
+        .dropdown.active .toggle-icon {
+            transform: rotate(180deg);
+        }
     </style>
 </head>
 
 <body>
     <!-- Sidebar -->
-    <?php include "../templates/sidebar.php"; ?>
+    <nav class="sidebar">
+        <div class="sidebar-header">
+            <i class="fas fa-church fa-2x"></i>
+            <h3>Admin Gereja</h3>
+        </div>
+        <ul class="sidebar-menu">
+            <li>
+                <a href="dashboard.php" class="<?= ($current_page == 'dashboard.php') ? 'active' : '' ?>">
+                    <i class="fas fa-tachometer-alt"></i> Dashboard
+                </a>
+            </li>
+            <li>
+                <a href="ayat_harian_admin.php" class="<?= ($current_page == 'ayat_harian_admin.php') ? 'active' : '' ?>">
+                    <i class="fas fa-bible"></i> Ayat Harian
+                </a>
+            </li>
+            <li>
+                <a href="jadwal_ibadah.php" class="<?= ($current_page == 'jadwal_ibadah.php') ? 'active' : '' ?>">
+                    <i class="fas fa-calendar-alt"></i> Jadwal Ibadah
+                </a>
+            </li>
+            <li>
+                <a href="program_pelayanan.php" class="<?= ($current_page == 'program_pelayanan.php') ? 'active' : '' ?>">
+                    <i class="fas fa-folder"></i> Program Pelayanan
+                </a>
+            </li>
+            <li>
+                <a href="jemaat.php" class="<?= ($current_page == 'jemaat.php') ? 'active' : '' ?>">
+                    <i class="fas fa-users"></i> Jemaat
+                </a>
+            </li>
+            <li>
+                <a href="logout.php">
+                    <i class="fas fa-sign-out-alt"></i> Keluar
+                </a>
+            </li>
+        </ul>
+    </nav>
+
     <!-- Main Content -->
     <div class="main-content">
         <div class="header">
             <h1>Dashboard</h1>
-            <div class="user-welcome">Selamat datang, Admin</div>
+            <div class="user-welcome">Selamat datang, <?= htmlspecialchars($username); ?></div>
         </div>
 
         <div class="row">
@@ -322,10 +440,14 @@ while ($row = mysqli_fetch_assoc($jadwal_result)) {
                     Pengumuman Terbaru
                 </div>
                 <div class="card-content">
-                    <?php if ($pengumuman): ?>
-                        <p><strong><?= htmlspecialchars($pengumuman['uraian']); ?></strong></p>
-                        <p>Bentuk: <?= htmlspecialchars($pengumuman['bentuk']); ?></p>
-                        <p>Waktu: <?= htmlspecialchars($pengumuman['waktu_pelaksanaan']); ?></p>
+                    <?php if ($pengumuman && isset($pengumuman['judul'])): ?>
+                        <p><strong><?= htmlspecialchars($pengumuman['judul']); ?></strong></p>
+                        <?php if (isset($pengumuman['deskripsi'])): ?>
+                            <p><?= htmlspecialchars($pengumuman['deskripsi']); ?></p>
+                        <?php endif; ?>
+                        <?php if (isset($pengumuman['tanggal'])): ?>
+                            <p>Tanggal: <?= htmlspecialchars($pengumuman['tanggal']); ?></p>
+                        <?php endif; ?>
                     <?php else: ?>
                         <p>Tidak ada pengumuman terbaru.</p>
                     <?php endif; ?>
@@ -338,9 +460,11 @@ while ($row = mysqli_fetch_assoc($jadwal_result)) {
                     Ayat Harian
                 </div>
                 <div class="card-content">
-                    <?php if ($ayat): ?>
-                        <p><strong><?= htmlspecialchars($ayat['referensi']); ?></strong></p>
-                        <p><?= htmlspecialchars($ayat['ayat']); ?></p>
+                    <?php if ($ayat && isset($ayat['kitab'])): ?>
+                        <p><strong><?= htmlspecialchars($ayat['kitab']); ?> <?= htmlspecialchars($ayat['pasal']); ?>:<?= htmlspecialchars($ayat['ayat_awal']); ?></strong></p>
+                        <?php if (isset($ayat['isi_ayat'])): ?>
+                            <p><?= htmlspecialchars($ayat['isi_ayat']); ?></p>
+                        <?php endif; ?>
                         <p style="font-size:12px;color:#888;">
                             <?= date('l, d F Y', strtotime($ayat['tanggal_dibuat'])); ?>
                         </p>
@@ -359,9 +483,11 @@ while ($row = mysqli_fetch_assoc($jadwal_result)) {
                     <?php if (!empty($jadwal_ibadah)): ?>
                         <?php foreach ($jadwal_ibadah as $jadwal): ?>
                             <p>
-                                <strong><?= htmlspecialchars($jadwal['hari']); ?></strong> - 
-                                <?= htmlspecialchars($jadwal['ibadah']); ?> 
-                                (<?= htmlspecialchars($jadwal['keterangan']); ?>)
+                                <strong><?= htmlspecialchars($jadwal['hari']); ?></strong> -
+                                <?= htmlspecialchars($jadwal['ibadah']); ?>
+                                <?php if (isset($jadwal['keterangan'])): ?>
+                                    (<?= htmlspecialchars($jadwal['keterangan']); ?>)
+                                <?php endif; ?>
                             </p>
                         <?php endforeach; ?>
                     <?php else: ?>
@@ -371,6 +497,15 @@ while ($row = mysqli_fetch_assoc($jadwal_result)) {
             </div>
         </div>
     </div>
+
+    <script>
+        document.querySelectorAll('.dropdown-toggle').forEach(toggle => {
+            toggle.addEventListener('click', function() {
+                const parent = this.parentElement;
+                parent.classList.toggle('active');
+            });
+        });
+    </script>
 </body>
 
 </html>
