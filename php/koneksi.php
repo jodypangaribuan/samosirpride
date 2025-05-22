@@ -1,9 +1,9 @@
 <?php
-$host = getenv('DB_HOST') ?: "db";
-$user = getenv('DB_USER') ?: "root";
-$pass = getenv('DB_PASSWORD') ?: "";
-$db   = getenv('DB_NAME') ?: "db_admin";
-$port = getenv('DB_PORT') ?: 3306; // Default port in Docker
+$host = "localhost";
+$user = "root";
+$pass = "";
+$db   = "db_admin";
+$port = 3306; // Tambahkan port di sini
 
 // Membuat koneksi dengan error reporting
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);

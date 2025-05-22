@@ -3,8 +3,10 @@
 .vscode
 docker-compose.yml
 Dockerfile
-.dockerignore
 README.md
-database/backups
-*.log
-Composer-Setup.exe 
+.dockerignore
+Composer-Setup.exe
+**/node_modules
+php/uploads/*
+!php/uploads/.gitkeep
+database/backup.sql 
