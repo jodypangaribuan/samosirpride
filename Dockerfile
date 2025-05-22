@@ -5,6 +5,7 @@ RUN apt-get update && apt-get install -y \
     libzip-dev \
     zip \
     unzip \
+    default-mysql-client \
     && docker-php-ext-install mysqli pdo_mysql zip
 
 # Enable Apache mod_rewrite

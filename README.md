@@ -15,22 +15,30 @@ This project has been dockerized to make deployment easy on any platform support
 
    ```
    git clone <repository-url>
-   cd proyekAkhir1
+   cd <project-directory>
    ```
 
-2. Start the application:
+2. Create .env file from the example:
+
+   ```
+   cp env.example .env
+   ```
+
+   You can modify the .env file to customize database credentials, ports, etc.
+
+3. Start the application:
 
    ```
    docker-compose up -d
    ```
 
-3. Access the website:
+4. Access the website:
 
    ```
    http://localhost
    ```
 
-4. Access the admin panel:
+5. Access the admin panel:
    ```
    http://localhost/php/login.php
    ```
@@ -43,30 +51,32 @@ This project has been dockerized to make deployment easy on any platform support
 The Docker setup uses the following configuration:
 
 - PHP 8.0 with Apache
-- MySQL 8.0 on port 3307
-- Website running on port 80
+- MySQL 8.0
+- Website running on port 80 (configurable)
 
 ### Environment Variables
 
-You can customize the database connection by modifying the environment variables in the `docker-compose.yml` file:
+You can customize the deployment by modifying the environment variables in the `.env` file:
 
-- DB_HOST: Database hostname (default: db)
-- DB_PORT: Database port (default: 3306)
-- DB_USER: Database username (default: root)
-- DB_PASSWORD: Database password (default: root_password)
-- DB_NAME: Database name (default: db_admin)
+- `DB_HOST`: Database hostname (default: db)
+- `DB_PORT`: Database port (default: 3306)
+- `DB_USER`: Database username (default: root)
+- `DB_PASSWORD`: Database password (default: root_password)
+- `DB_NAME`: Database name (default: db_admin)
+- `WEB_PORT`: Website port (default: 80)
+- `MYSQL_PORT`: MySQL external port (default: 3307)
 
 ### Volumes
 
 The Docker setup uses the following volumes:
 
-- `.:/var/www/html`: Mount the current directory to the web server's document root
+- `./:/var/www/html`: Mount the current directory to the web server's document root
 - `mysql_data:/var/lib/mysql`: Persist MySQL data
 - `./database:/docker-entrypoint-initdb.d`: Database initialization scripts
 
 ### Deployment
 
-To deploy on a VPS or any Docker-compatible environment:
+#### Deploying on a VPS
 
 1. Install Docker and Docker Compose on your server:
 
@@ -79,48 +89,107 @@ To deploy on a VPS or any Docker-compatible environment:
 2. Copy your project files to the server:
 
    ```
-   scp -r proyekAkhir1 user@your-server:/path/to/destination
+   # Using git
+   git clone <repository-url> /path/to/destination
+
+   # OR using scp
+   scp -r <project-directory> user@your-server:/path/to/destination
    ```
 
-3. Start the containers:
+3. Configure environment variables:
 
    ```
-   cd /path/to/destination/proyekAkhir1
+   cd /path/to/destination
+   cp env.example .env
+   nano .env  # Edit settings as needed
+   ```
+
+4. Start the containers:
+
+   ```
    docker-compose up -d
    ```
 
-4. Access your website at `http://your-server-ip`
+5. Access your website at `http://your-server-ip`
 
-### Data Persistence
+#### Deploying on WSL (Windows Subsystem for Linux)
 
-The MySQL data is stored in a Docker volume named `mysql_data`, which persists across container restarts. To back up your data:
+1. Make sure WSL2 and Docker Desktop are installed and configured.
 
-```
-docker exec proyekakhir1-db-1 sh -c 'exec mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" db_admin' > backup.sql
-```
+2. Navigate to your project in WSL:
 
-To restore data:
+   ```
+   cd /path/to/your/project
+   ```
 
-```
-cat backup.sql | docker exec -i proyekakhir1-db-1 sh -c 'exec mysql -uroot -p"$MYSQL_ROOT_PASSWORD" db_admin'
-```
+3. Create and configure the .env file:
+
+   ```
+   cp env.example .env
+   nano .env  # Edit settings as needed
+   ```
+
+4. Start the containers:
+
+   ```
+   docker-compose up -d
+   ```
+
+5. Access your website at `http://localhost`
 
 ### Troubleshooting
 
-- If you encounter permission issues with file uploads, run:
+#### Fixing Container Configuration Errors
 
-  ```
-  docker exec proyekakhir1-webserver-1 chown -R www-data:www-data /var/www/html
-  ```
+If you encounter an error related to `ContainerConfig`, try these steps:
 
-- If the database connection fails, check if MySQL is running:
+1. Stop all containers and remove them:
 
-  ```
-  docker-compose ps
-  ```
+   ```
+   docker-compose down
+   ```
 
-  And check the logs:
+2. Remove the volume to start fresh:
 
-  ```
-  docker-compose logs db
-  ```
+   ```
+   docker volume rm <project_name>_mysql_data
+   ```
+
+3. Restart the containers:
+   ```
+   docker-compose up -d
+   ```
+
+#### Permission Issues
+
+If you encounter permission issues with file uploads, run:
+
+```
+docker exec hkbp_webserver chown -R www-data:www-data /var/www/html
+docker exec hkbp_webserver chmod -R 775 /var/www/html/php/uploads
+```
+
+#### Database Connection Issues
+
+If the database connection fails, check if MySQL is running:
+
+```
+docker-compose ps
+```
+
+And check the logs:
+
+```
+docker-compose logs db
+```
+
+#### For WSL Users
+
+If you encounter networking issues in WSL, try:
+
+1. Restart Docker Desktop
+2. In PowerShell (as Administrator), run:
+   ```
+   netsh winsock reset
+   ```
+3. Restart your computer
