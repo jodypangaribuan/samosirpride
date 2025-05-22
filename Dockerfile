@@ -6,7 +6,11 @@ RUN apt-get update && apt-get install -y \
     zip \
     unzip \
     default-mysql-client \
-    && docker-php-ext-install mysqli pdo_mysql zip
+    libfreetype6-dev \
+    libjpeg62-turbo-dev \
+    libpng-dev \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install mysqli pdo_mysql zip gd
 
 # Enable Apache mod_rewrite
 RUN a2enmod rewrite

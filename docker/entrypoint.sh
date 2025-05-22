@@ -17,7 +17,7 @@ if [ -f /var/www/html/php/koneksi.php ]; then
     sed -i "s/\$user = \"root\";/\$user = \"${DB_USER}\";/" /var/www/html/php/koneksi.php
     sed -i "s/\$pass = \"\";/\$pass = \"${DB_PASSWORD}\";/" /var/www/html/php/koneksi.php
     sed -i "s/\$db   = \"db_admin\";/\$db   = \"${DB_NAME}\";/" /var/www/html/php/koneksi.php
-    sed -i "s/\$port = 3307;/\$port = ${DB_PORT};/" /var/www/html/php/koneksi.php
+    sed -i "s/\$port = 3306;/\$port = ${DB_PORT};/" /var/www/html/php/koneksi.php
     echo "Database connection updated."
 else
     echo "Warning: Database configuration file not found."

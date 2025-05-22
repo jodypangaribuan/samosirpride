@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 -- Insert admin user (default password: admin123)
-INSERT INTO users (username, password) VALUES ('admin', '$2y$10$2U5TkCeEr8e4M0fueO9oreOd9MIx.CzFMNiSt0dxUqVCFhkTT/3nG');
+INSERT INTO users (username, password) VALUES ('admin', '$2y$10$u8YFJsrBPgEvU2QiWOjzE.LcZaDBUbfkRzqaqRTPsQYXh1x/hjUT6');
 
 -- Jemaat table
 CREATE TABLE IF NOT EXISTS jemaat (

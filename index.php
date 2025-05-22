@@ -104,10 +104,12 @@ Purchase Premium Metronic Admin Theme: http://themeforest.net/item/metronic-resp
       margin-bottom: 10px;
       font-weight: bold;
     }
-    .table-warning{
-      background-color:rgb(224, 107, 10);
+
+    .table-warning {
+      background-color: rgb(224, 107, 10);
       color: white;
     }
+
     .title {
       font-size: 20px;
       font-weight: bold;
@@ -145,6 +147,22 @@ Purchase Premium Metronic Admin Theme: http://themeforest.net/item/metronic-resp
       visibility: visible;
     }
 
+    /* Login button styling */
+    .login-button {
+      background-color: #e87e04;
+      color: white;
+      padding: 5px 15px;
+      border-radius: 4px;
+      margin-left: 10px;
+      text-decoration: none;
+      font-weight: bold;
+    }
+
+    .login-button:hover {
+      background-color: #c26700;
+      color: white;
+      text-decoration: none;
+    }
 
     .ayat-container {
       max-width: 900px;
@@ -551,7 +569,7 @@ Purchase Premium Metronic Admin Theme: http://themeforest.net/item/metronic-resp
 
   <script src="assets/corporate/scripts/layout.js" type="text/javascript"></script>
   <script type="text/javascript">
-    jQuery(document).ready(function () {
+    jQuery(document).ready(function() {
       Layout.init();
       Layout.initTwitter();
     });
